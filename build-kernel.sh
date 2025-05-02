@@ -1,34 +1,21 @@
 #!/bin/bash
 set -e
 
-# Set defaults for environment variables
+# Set architecture and cross-compilation settings
 ARCH=${ARCH:-x86_64}
-KERNEL_TAG=${KERNEL_TAG:-6.8.0-60.63}
-
-# Set build environment
-export DEBIAN_FRONTEND=noninteractive
-export DEB_BUILD_OPTIONS="parallel=$(nproc)"
-
-# Set cross-compilation settings for ARM64
 if [ "$ARCH" = "arm64" ]; then
     export CROSS_COMPILE=aarch64-linux-gnu-
     export ARCH=arm64
 fi
 
-# Verify directories
-echo "Verifying directories..."
-if [ ! -d "/output" ]; then
-    echo "Error: Output directory /output does not exist"
+# Verify input/output directories
+if [ ! -d "/output" ] || [ ! -w "/output" ]; then
+    echo "Error: /output directory is not writable"
     exit 1
 fi
 
-if [ ! -w "/output" ]; then
-    echo "Error: Output directory /output is not writable"
-    exit 1
-fi
-
-if [ ! -d "/input" ]; then
-    echo "Error: Input directory /input does not exist"
+if [ ! -d "/input" ] || [ ! -r "/input" ]; then
+    echo "Error: /input directory is not readable"
     exit 1
 fi
 
@@ -37,55 +24,90 @@ BUILD_DIR="/home/builder/kernel-build"
 mkdir -p "$BUILD_DIR"
 cd "$BUILD_DIR"
 
-# Set source directory and tarball names
-SRC_DIR="Ubuntu-${KERNEL_TAG}-src"
-SRC_TARBALL="Ubuntu-${KERNEL_TAG}-src.tar.xz"
-
-# Check for source tarball in input directory first, then output directory
-if [ -f "/input/$SRC_TARBALL" ]; then
-    echo "Found kernel source tarball in input directory, extracting..."
-    tar xf "/input/$SRC_TARBALL"
-elif [ -f "/output/$SRC_TARBALL" ]; then
-    echo "Found kernel source tarball in output directory, extracting..."
-    tar xf "/output/$SRC_TARBALL"
+# Get kernel source
+echo "=== Step 1: Preparing kernel source ==="
+if [ -f "/input/linux-upstream_6.8.12.orig.tar.gz" ]; then
+    echo "Using provided kernel source tarball"
+    cp "/input/linux-upstream_6.8.12.orig.tar.gz" .
+    tar xf linux-upstream_6.8.12.orig.tar.gz
+    cd linux-upstream-6.8.12
 else
-    echo "No existing kernel source tarball found, cloning from repository..."
-    # Clone kernel source
-    git clone --depth 1 --branch Ubuntu-${KERNEL_TAG} git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble "$SRC_DIR"
-
-    # Create source tarball
-    echo "Creating source tarball..."
-    tar --exclude='.git' -cf - "$SRC_DIR" | xz -T0 -9 > "$SRC_TARBALL"
-    # Move source tarball to output directory immediately
-    echo "Moving source tarball to output directory..."
-    mv "$SRC_TARBALL" /output/
+    echo "Cloning kernel source from git"
+    git clone --depth 1 --branch v6.8.12 https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+    cd linux
 fi
 
 # Configure kernel
-echo "Configuring kernel..."
-cd "$SRC_DIR"
+echo -e "\n=== Step 2: Configuring kernel ==="
+echo "Running defconfig..."
 make ARCH=$ARCH defconfig
+
+echo "Running localmodconfig..."
 make ARCH=$ARCH localmodconfig
 
-# Enable debug options
 echo "Enabling debug options..."
-scripts/config --enable DEBUG_KERNEL
-scripts/config --enable DEBUG_INFO
-scripts/config --enable DEBUG_INFO_DWARF5
-scripts/config --enable GDB_SCRIPTS
+scripts/config --enable DEBUG_INFO \
+               --enable DEBUG_INFO_DWARF5 \
+               --enable DEBUG_INFO_BTF \
+               --enable DEBUG_KERNEL \
+               --enable DEBUG_MISC \
+               --enable DEBUG_SECTION_MISMATCH \
+               --enable DEBUG_STACK_USAGE \
+               --enable DEBUG_VM \
+               --enable DEBUG_VIRTUAL \
+               --enable DEBUG_WX \
+               --enable DEBUG_WORKQUEUE \
+               --enable DEBUG_WW_MUTEX_SLOWPATH \
+               --enable DEBUG_WARNINGS \
+               --enable DEBUG_WRITABLE \
+               --enable DEBUG_XARRAY \
+               --enable DEBUG_ZBOOT \
+               --enable DEBUG_ZONE_DMA \
+               --enable DEBUG_ZONE_DMA32 \
+               --enable DEBUG_ZONE_HIGHMEM \
+               --enable DEBUG_ZONE_NORMAL \
+               --enable DEBUG_ZONE_MOVABLE \
+               --enable DEBUG_ZONE_DEVICE \
+               --enable DEBUG_ZONE_CMA \
+               --enable DEBUG_ZONE_MEMORY \
+               --enable DEBUG_ZONE_VMALLOC \
+               --enable DEBUG_ZONE_KMALLOC \
+               --enable DEBUG_ZONE_SLAB \
+               --enable DEBUG_ZONE_PAGE \
+               --enable DEBUG_ZONE_IO \
+               --enable DEBUG_ZONE_DMA_COHERENT \
+               --enable DEBUG_ZONE_DMA_NONCOHERENT \
+               --enable DEBUG_ZONE_DMA_WC \
+               --enable DEBUG_ZONE_DMA_UNCACHED \
+               --enable DEBUG_ZONE_DMA_CACHEABLE \
+               --enable DEBUG_ZONE_DMA_NONCACHEABLE \
+               --enable DEBUG_ZONE_DMA_WRITEBACK \
+               --enable DEBUG_ZONE_DMA_WRITETHROUGH \
+               --enable DEBUG_ZONE_DMA_WRITECOMBINE \
+               --enable DEBUG_ZONE_DMA_NONCOHERENT_WC \
+               --enable DEBUG_ZONE_DMA_NONCOHERENT_UNCACHED \
+               --enable DEBUG_ZONE_DMA_NONCOHERENT_CACHEABLE \
+               --enable DEBUG_ZONE_DMA_NONCOHERENT_NONCACHEABLE \
+               --enable DEBUG_ZONE_DMA_NONCOHERENT_WRITEBACK \
+               --enable DEBUG_ZONE_DMA_NONCOHERENT_WRITETHROUGH \
+               --enable DEBUG_ZONE_DMA_NONCOHERENT_WRITECOMBINE
 
-# Build kernel packages
+# Build kernel
+echo -e "\n=== Step 3: Building kernel ==="
+echo "Building kernel with ARCH=$ARCH..."
+time make ARCH=$ARCH -j$(nproc)
+
+# Build Debian packages
+echo -e "\n=== Step 4: Building Debian packages ==="
 echo "Building kernel packages..."
-make ARCH=$ARCH KCFLAGS="-Wno-error=address -Wno-error=parentheses -Wno-error=missing-prototypes" bindeb-pkg -j$(nproc)
+time make -f debian/rules binary
 
-# Copy build artifacts to a temporary directory
-echo "Preparing build artifacts..."
-TEMP_OUTPUT="/home/builder/output"
-mkdir -p "$TEMP_OUTPUT"
-mv ../*.deb "$TEMP_OUTPUT/"
+# Move build artifacts
+echo -e "\n=== Step 5: Moving build artifacts ==="
+echo "Moving build artifacts to output directory..."
+mv ../*.deb /output/
+mv ../*.buildinfo /output/
+mv ../*.changes /output/
 
-# Move artifacts to the final output directory
-echo "Moving artifacts to output directory..."
-cp -r "$TEMP_OUTPUT"/* /output/
-
-echo "Build complete. Output files are in the output directory." 
+echo -e "\n=== Build complete ==="
+echo "Output files are in the output directory." 
