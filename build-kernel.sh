@@ -3,6 +3,12 @@ set -e
 
 # Set architecture and cross-compilation settings
 ARCH=${ARCH:-x86_64}
+KERNEL_TAG=${KERNEL_TAG:-6.8.0-60.63}
+
+# Set source directory and tarfile names
+SRC_DIR="Ubuntu-${KERNEL_TAG}-src"
+SRC_TARBALL="Ubuntu-${KERNEL_TAG}-src.tar.xz"
+
 if [ "$ARCH" = "arm64" ]; then
     export CROSS_COMPILE=aarch64-linux-gnu-
     export ARCH=arm64
@@ -26,16 +32,19 @@ cd "$BUILD_DIR"
 
 # Get kernel source
 echo "=== Step 1: Preparing kernel source ==="
-if [ -f "/input/linux-upstream_6.8.12.orig.tar.gz" ]; then
+if [ -f "/input/${SRC_TARBALL}" ]; then
     echo "Using provided kernel source tarball"
-    cp "/input/linux-upstream_6.8.12.orig.tar.gz" .
-    tar xf linux-upstream_6.8.12.orig.tar.gz
-    cd linux-upstream-6.8.12
+    tar xf "/input/${SRC_TARBALL}"
 else
-    echo "Cloning kernel source from git"
-    git clone --depth 1 --branch v6.8.12 https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
-    cd linux
+    echo "Cloning kernel source from Ubuntu repository (version: $KERNEL_TAG)"
+    git -c http.sslVerify=false clone --depth 1 --branch Ubuntu-${KERNEL_TAG} git://git.launchpad.net/~ubuntu-kernel/ubuntu/+source/linux/+git/noble ${SRC_DIR}
+    # Create source tarball with parallel xz compression
+    echo "Creating source tarball with parallel xz compression..."
+    tar cf - ${SRC_DIR} | xz -T0 -9 > ${SRC_TARBALL}
+    mv ${SRC_TARBALL} /output/
 fi
+
+cd ${SRC_DIR}
 
 # Configure kernel
 echo -e "\n=== Step 2: Configuring kernel ==="
