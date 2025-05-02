@@ -9,6 +9,9 @@ KERNEL_TAG=${KERNEL_TAG:-6.8.0-60.63}
 SRC_DIR="Ubuntu-${KERNEL_TAG}-src"
 SRC_TARBALL="Ubuntu-${KERNEL_TAG}-src.tar.xz"
 
+# Disable treating warnings as errors
+export KCFLAGS="-Wno-error"
+
 if [ "$ARCH" = "arm64" ]; then
     export CROSS_COMPILE=aarch64-linux-gnu-
     export ARCH=arm64
