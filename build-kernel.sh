@@ -57,52 +57,8 @@ make ARCH=$ARCH defconfig
 echo "Running localmodconfig..."
 make ARCH=$ARCH localmodconfig
 
-echo "Enabling debug options..."
-scripts/config --enable DEBUG_INFO \
-               --enable DEBUG_INFO_DWARF5 \
-               --enable DEBUG_INFO_BTF \
-               --enable DEBUG_KERNEL \
-               --enable DEBUG_MISC \
-               --enable DEBUG_SECTION_MISMATCH \
-               --enable DEBUG_STACK_USAGE \
-               --enable DEBUG_VM \
-               --enable DEBUG_VIRTUAL \
-               --enable DEBUG_WX \
-               --enable DEBUG_WORKQUEUE \
-               --enable DEBUG_WW_MUTEX_SLOWPATH \
-               --enable DEBUG_WARNINGS \
-               --enable DEBUG_WRITABLE \
-               --enable DEBUG_XARRAY \
-               --enable DEBUG_ZBOOT \
-               --enable DEBUG_ZONE_DMA \
-               --enable DEBUG_ZONE_DMA32 \
-               --enable DEBUG_ZONE_HIGHMEM \
-               --enable DEBUG_ZONE_NORMAL \
-               --enable DEBUG_ZONE_MOVABLE \
-               --enable DEBUG_ZONE_DEVICE \
-               --enable DEBUG_ZONE_CMA \
-               --enable DEBUG_ZONE_MEMORY \
-               --enable DEBUG_ZONE_VMALLOC \
-               --enable DEBUG_ZONE_KMALLOC \
-               --enable DEBUG_ZONE_SLAB \
-               --enable DEBUG_ZONE_PAGE \
-               --enable DEBUG_ZONE_IO \
-               --enable DEBUG_ZONE_DMA_COHERENT \
-               --enable DEBUG_ZONE_DMA_NONCOHERENT \
-               --enable DEBUG_ZONE_DMA_WC \
-               --enable DEBUG_ZONE_DMA_UNCACHED \
-               --enable DEBUG_ZONE_DMA_CACHEABLE \
-               --enable DEBUG_ZONE_DMA_NONCACHEABLE \
-               --enable DEBUG_ZONE_DMA_WRITEBACK \
-               --enable DEBUG_ZONE_DMA_WRITETHROUGH \
-               --enable DEBUG_ZONE_DMA_WRITECOMBINE \
-               --enable DEBUG_ZONE_DMA_NONCOHERENT_WC \
-               --enable DEBUG_ZONE_DMA_NONCOHERENT_UNCACHED \
-               --enable DEBUG_ZONE_DMA_NONCOHERENT_CACHEABLE \
-               --enable DEBUG_ZONE_DMA_NONCOHERENT_NONCACHEABLE \
-               --enable DEBUG_ZONE_DMA_NONCOHERENT_WRITEBACK \
-               --enable DEBUG_ZONE_DMA_NONCOHERENT_WRITETHROUGH \
-               --enable DEBUG_ZONE_DMA_NONCOHERENT_WRITECOMBINE
+# Do not stop the build on warnings
+scripts/config -d CONFIG_WERROR
 
 # Build kernel
 echo -e "\n=== Step 3: Building kernel ==="
@@ -112,7 +68,7 @@ time make ARCH=$ARCH -j$(nproc)
 # Build Debian packages
 echo -e "\n=== Step 4: Building Debian packages ==="
 echo "Building kernel packages..."
-time make -f debian/rules binary
+time make ARCH=$ARCH -j$(nproc) bindeb-pkg
 
 # Move build artifacts
 echo -e "\n=== Step 5: Moving build artifacts ==="
@@ -122,4 +78,4 @@ mv ../*.buildinfo /output/
 mv ../*.changes /output/
 
 echo -e "\n=== Build complete ==="
-echo "Output files are in the output directory." 
+echo "Output files are in the output directory."

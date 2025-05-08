@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libdw-dev \
     libudev-dev \
     rsync \
+    gawk \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up build environment
@@ -56,4 +57,4 @@ RUN chmod +x /home/builder/build-kernel.sh
 USER builder
 WORKDIR /home/builder
 
-ENTRYPOINT ["/home/builder/build-kernel.sh"] 
+ENTRYPOINT ["/home/builder/build-kernel.sh"]
