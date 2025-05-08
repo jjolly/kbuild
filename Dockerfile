@@ -23,20 +23,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bc \
     bison \
-    flex \
-    libssl-dev \
-    libelf-dev \
+    cpio \
     dwarves \
+    flex \
+    gawk \
+    kmod \
+    libdw-dev \
+    libelf-dev \
+    libncurses-dev \
+    libssl-dev \
+    libudev-dev \
+    openssl \
+    pkg-config \
     python3 \
     python3-dev \
-    cpio \
-    kmod \
-    pkg-config \
-    libncurses-dev \
-    libdw-dev \
-    libudev-dev \
     rsync \
-    gawk \
+    zstd \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up build environment

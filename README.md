@@ -16,16 +16,16 @@ docker build -t kernel-builder .
 
 ## Usage
 
-### Building for amd64
+### Building for amd64 (interchangable with x86\_64
 
 ```bash
-docker run --rm -v $(pwd)/output:/output kernel-builder amd64
+docker run --rm -v $(pwd)/output:/output -eARCH="amd64" kernel-builder
 ```
 
 ### Building for arm64
 
 ```bash
-docker run --rm -v $(pwd)/output:/output kernel-builder arm64
+docker run --rm -v $(pwd)/output:/output -eARCH="arm64" kernel-builder
 ```
 
 ### Customizing the Build
@@ -35,9 +35,8 @@ You can customize the build by setting environment variables:
 ```bash
 docker run --rm \
   -v $(pwd)/output:/output \
-  -e KERNEL_VERSION=6.1.0 \
+  -e KERNEL_TAG=v6.8 \
   -e KERNEL_SOURCE=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git \
-  -e KERNEL_BRANCH=linux-6.1.y \
   kernel-builder arm64
 ```
 
@@ -45,13 +44,15 @@ docker run --rm \
 
 The built Debian packages will be available in the `output` directory on your host system. The packages include:
 
-- linux-image-*.deb: The kernel image package
-- linux-headers-*.deb: The kernel headers package
-- linux-libc-dev-*.deb: The kernel development package
+- linux-image-\*.deb: The kernel image package
+- linux-headers-\*.deb: The kernel headers package
+- linux-libc-dev-\*.deb: The kernel development package
 
 ## Notes
 
 - The build process may take several hours depending on your system's resources
 - Make sure you have enough disk space in the output directory
+- You can provide your own config by supplying a file in the input directory named `config-${ARCH}`
+  - The supplied config file will be olddefconfig'd because we don't trust you
 - The build uses the default kernel configuration (defconfig)
-- For custom kernel configurations, you'll need to modify the build script 
+- Patches found in `/input/patches` will be applied to the kernel source before configuration
