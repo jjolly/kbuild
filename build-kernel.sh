@@ -38,6 +38,7 @@ fi
 # Create build directory
 BUILD_DIR="/home/builder/kernel-build"
 if [ -d "$BUILD_DIR" ]; then
+  echo "=== Step 0: Cleaning build area ==="
   rm -rf "$BUILD_DIR"
 fi
 mkdir -p "$BUILD_DIR"
@@ -59,22 +60,25 @@ fi
 
 cd ${SRC_DIR}
 
-if [ -d "/input/patches" ]; then
-  find /input/patches -type f | while read patchfile; do
-    # Skip "hidden" files
-    if [[ $(basename "$patchfile") =~ ^[^.] ]]; then
-      echo Patching with $patchfile
-      if ! patch -p1 < "$patchfile"; then
-        echo "Patching failed with $patchfile"
-        exit 1
+for subdir in "${KERNEL_TAG}" "all"; do
+  PATCH_DIR="/input/patches/${subdir}"
+  if [ -d "${PATCH_DIR}" ]; then
+    find "${PATCH_DIR}" -type f | while read patchfile; do
+      # Skip "hidden" files
+      if [[ $(basename "$patchfile") =~ ^[^.] ]]; then
+        echo Patching with $patchfile
+        if ! patch -p1 < "$patchfile"; then
+          echo "Patching failed with $patchfile"
+          exit 1
+        fi
       fi
-    fi
-  done
-fi
+    done
+  fi
+done
 
 # Configure kernel
 echo -e "\n=== Step 2: Configuring kernel ==="
-CONFIG_SRC="/input/config-${ARCH}"
+CONFIG_SRC="/input/config-${KERNEL_TAG}-${ARCH}"
 if [ -f "${CONFIG_SRC}" ]; then
   echo "Using config file ${CONFIG_SRC}"
   cp "${CONFIG_SRC}" .config
@@ -102,9 +106,9 @@ time make $KMAKE_OPTS -j$(nproc) bindeb-pkg
 # Move build artifacts
 echo -e "\n=== Step 5: Moving build artifacts ==="
 echo "Moving build artifacts to output directory..."
-mv ../*.deb /output/
-mv ../*.buildinfo /output/
-mv ../*.changes /output/
+mv -v ../*.deb /output/
+mv -v ../*.buildinfo /output/
+mv -v ../*.changes /output/
 
 echo -e "\n=== Build complete ==="
 echo "Output files are in the output directory."

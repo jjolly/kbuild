@@ -52,11 +52,11 @@ RUN mkdir -p /input /output && \
     chown -R builder:builder /input /output
 
 # Add build script and set permissions
-COPY --chown=builder:builder build-kernel.sh /home/builder/
-RUN chmod +x /home/builder/build-kernel.sh
+COPY --chown=builder:builder log-build-to-output.sh build-kernel.sh /home/builder/
+RUN chmod +x /home/builder/log-build-to-output.sh /home/builder/build-kernel.sh
 
 # Switch to builder user
 USER builder
 WORKDIR /home/builder
 
-ENTRYPOINT ["/home/builder/build-kernel.sh"]
+ENTRYPOINT ["/home/builder/log-build-to-output.sh"]

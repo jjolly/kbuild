@@ -52,7 +52,10 @@ The built Debian packages will be available in the `output` directory on your ho
 
 - The build process may take several hours depending on your system's resources
 - Make sure you have enough disk space in the output directory
-- You can provide your own config by supplying a file in the input directory named `config-${ARCH}`
+- You can provide your own config by supplying a file in the input directory named `config-${KERNEL_TAG}-${ARCH}`
   - The supplied config file will be olddefconfig'd because we don't trust you
 - The build uses the default kernel configuration (defconfig)
 - Patches found in `/input/patches` will be applied to the kernel source before configuration
+  - The `/input/patches/all` subdirectory will be processed for all build tags
+  - For patches intended for specific build tags use `/input/patches/${KERNEL_TAG}`
+  - Files directly in `/input/patches`, or files beginning with a period will not be processed
