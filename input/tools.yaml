@@ -1,0 +1,33 @@
+- name: perf
+  enabled: true
+  path: perf
+  build_options:
+    - NO_LIBBPF=1 # An error building `tests/bpf.c` is resolved here
+  packages:
+    - libbabeltrace-dev
+    - libcap-dev
+    - libdw-dev
+    - libelf-dev
+    - libnuma-dev
+    - libperl-dev
+    - libpfm4-dev
+    - libpython3-dev
+    - libslang2-dev
+    - libssl-dev
+    - libtraceevent-dev
+    - libunwind-dev
+    - pkg-config
+    - systemtap-sdt-dev
+
+- name: bpftool
+  enabled: true
+  path: bpf/bpftool
+  packages:
+    - libelf-dev
+    - libcap-dev
+
+- name: cpupower
+  enabled: false # build error, cannot find `pci/pci.h`
+  path: power/cpupower
+  packages:
+    - libpci-dev
