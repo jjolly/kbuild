@@ -187,9 +187,9 @@ echo "Building kernel packages with options ${KMAKE_OPTS}"
 time make $KMAKE_OPTS bindeb-pkg
 
 # Build tools
-# This relies on a file "tools.yaml" in the input directory. The base list of
-# the YAML file are dictionary elements that describe each tool to build. The
-# attributes for each directory element are:
+# This relies on a file "tools-<tag>-<arch>.yaml" in the input directory. The
+# base list of the YAML file are dictionary elements that describe each tool to
+# build. The attributes for each directory element are:
 # - name: (required) Name of the tool binary that will be built
 #         TODO: handle tool builds with multiple binaries
 # - enabled: (required) true or false - build it or skip it. Allows for tool
@@ -203,10 +203,11 @@ time make $KMAKE_OPTS bindeb-pkg
 #             any tool is built. The --no-install-recommends flag is used
 #             during the install, so be explicit with all required dependencies
 echo -e "\n=== Step 7: Build linux-tools ==="
-if [ ! -f /input/tools.yaml ]; then
-  echo "File tools.yaml not found in input directory. Skipping tools build"
-elif [ "x$(yq -r '.[] | select(.enabled).name' /input/tools.yaml)" == "x" ]; then
-  echo "No enabled tools to build found in tools.yaml"
+TOOLS_YAML="${TOOLS_YAML:-/input/tools-${KERNEL_TAG}-${ARCH}.yaml}"
+if [ ! -f "${TOOLS_YAML}" ]; then
+  echo "File ${TOOLS_YAML} not found. Skipping tools build"
+elif [ "x$(yq -r '.[] | select(.enabled).name' '${TOOLS_YAML}')" == "x" ]; then
+  echo "No enabled tools to build found in ${TOOLS_YAML}"
 else
   # Pull the final kernel uname and package version from kernel packages
   kuname=$(ar p "${BUILD_DIR}/${SRC_PARENT_DIR}/linux-headers"*.deb control.tar.zst | tar x --zstd -O | grep 'Package' | awk '{print $2}' | sed 's/linux-headers-//g' | sed 's/_.*//g')
@@ -217,14 +218,14 @@ else
   mkdir -p "${INST_DIR}"
 
   # Install dependent packages
-  sudo apt update && sudo apt install -y --no-install-recommends yq $(yq -r ".[] | select(.enabled and .packages).packages | map(. + \":${PACKAGE_ARCH}\") | flatten | join (\" \")" /input/tools.yaml)
+  sudo apt update && sudo apt install -y --no-install-recommends yq $(yq -r ".[] | select(.enabled and .packages).packages | map(. + \":${PACKAGE_ARCH}\") | flatten | join (\" \")" "${TOOLS_YAML}")
 
   # Build each enabled tool
-  yq -r '.[] | select(.enabled).name' /input/tools.yaml | while read toolname; do
-    TOOL_PATH=$(yq -r ".[] | select(.name == \"${toolname}\").path" /input/tools.yaml)
+  yq -r '.[] | select(.enabled).name' "${TOOLS_YAML}" | while read toolname; do
+    TOOL_PATH=$(yq -r ".[] | select(.name == \"${toolname}\").path" "${TOOLS_YAML}")
     echo "Building tool ${toolname} in path ${TOOL_PATH}"
     pushd "${BUILD_DIR}/${SRC_DIR}/tools/${TOOL_PATH}"
-    TOOL_BUILD_OPTS=$(yq -r ".[] | select(.name == \"${toolname}\" and .build_options).build_options | join(\" \")" /input/tools.yaml)
+    TOOL_BUILD_OPTS=$(yq -r ".[] | select(.name == \"${toolname}\" and .build_options).build_options | join(\" \")" "${TOOLS_YAML}")
     make $KMAKE_OPTS $TOOL_BUILD_OPTS
     cp -v "${toolname}" "${INST_DIR}/"
     popd
