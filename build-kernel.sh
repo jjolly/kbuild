@@ -33,6 +33,11 @@ if [ "x${KERNELRELEASE:0:3}" == "x6.5" ]; then
   COMPILER_VERSION=12
 fi
 
+# Use gcc-12 for the Bluefield release
+if [ "x${KERNELRELEASE:0:4}" == "x5.15" ]; then
+  COMPILER_VERSION=12
+fi
+
 # The default alternatives are for gcc-12. Change them for other compiler versions
 # The alternatives should be set up in the Dockerfile
 if [ "x${COMPILER_VERSION}" != "x13" ]; then
